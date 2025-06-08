@@ -7,45 +7,98 @@
   <style>
     body {
       display: flex;
-      font-family: Arial, sans-serif;
+      font-family: 'Segoe UI', system-ui, sans-serif;
       margin: 0;
+      background-color: #f9f9f9;
+      color: #333;
     }
     .sidebar {
-      width: 180px;
-      background: #f5f5f5;
-      padding: 10px;
+      width: 200px;
+      background: #ffffff;
+      border-right: 1px solid #ddd;
+      padding: 15px;
       overflow-y: auto;
     }
     .chart-container {
       flex: 1;
-      padding: 20px;
+      padding: 20px 30px;
+    }
+    h1, h2, h3 {
+      margin: 10px 0;
     }
     .stock-list button {
       display: block;
       width: 100%;
-      margin-bottom: 5px;
+      margin-bottom: 6px;
+      padding: 6px 0;
+      border: none;
+      background-color: #e0e0e0;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background-color 0.2s;
+    }
+    .stock-list button:hover {
+      background-color: #d0d0d0;
     }
     .controls {
-      margin-top: 10px;
+      margin-top: 15px;
     }
-    .info {
-      margin-top: 10px;
-    }
-    .log-table, .log-table th, .log-table td {
+    .controls input {
+      padding: 5px;
+      font-size: 14px;
+      width: 80px;
+      border-radius: 4px;
       border: 1px solid #ccc;
+      outline: none;
+    }
+    .controls input:focus {
+      border-color: #4caf50;
+    }
+    .controls button {
+      padding: 6px 12px;
+      margin-left: 6px;
+      border: none;
+      border-radius: 4px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .controls button:first-of-type {
+      background-color: #4caf50;
+      color: white;
+    }
+    .controls button:first-of-type:hover {
+      background-color: #43a047;
+    }
+    .controls button:last-of-type {
+      background-color: #f44336;
+      color: white;
+    }
+    .controls button:last-of-type:hover {
+      background-color: #e53935;
+    }
+    .info, .max-buy {
+      margin-top: 10px;
+      font-size: 15px;
+    }
+    .log-table {
+      width: 100%;
       border-collapse: collapse;
+      margin-top: 15px;
+      font-size: 14px;
     }
     .log-table th, .log-table td {
-      padding: 5px;
+      border: 1px solid #ccc;
+      padding: 6px 8px;
+      text-align: center;
     }
     .rankings {
       margin-top: 20px;
       font-size: 14px;
     }
-    .max-buy {
-      margin-top: 5px;
-      font-size: 14px;
-      color: #333;
+    #profit {
+      font-weight: bold;
     }
   </style>
 </head>
@@ -111,16 +164,22 @@
     let currentStock = stocks[0];
     let currentIndex = 50;
     const maxDataLength = 50;
+
     function getRandomPrice(prevPrice, stockName) {
-      let changePercent = stockName === '초기투자' ? (Math.random() * 0.04 - 0.01) : (Math.random() - 0.5) * 0.06;
+      // 초기투자 종목: -1% ~ +0.5% 변화율 (0.5% 차이)
+      let changePercent = stockName === '초기투자'
+        ? (Math.random() * 0.015 - 0.01) // -1% ~ +0.5%
+        : (Math.random() - 0.5) * 0.06;  // 나머지 종목 ±3%
       let newPrice = prevPrice * (1 + changePercent);
       return Math.max(1, Math.round(newPrice));
     }
+
     function generateInitialData(startPrice, stockName) {
       const arr = [startPrice];
       for (let i = 1; i < maxDataLength; i++) arr.push(getRandomPrice(arr[i - 1], stockName));
       return arr;
     }
+
     const stockData = {};
     stocks.forEach(s => stockData[s] = generateInitialData(startPrices[s], s));
 
@@ -265,29 +324,33 @@
         return sum + userHoldings.shares[stock] * stockData[stock].slice(-1)[0];
       }, 0);
       const total = currentValue + userHoldings.cash;
-      const profitRate = ((total - 50000) / 50000 * 100).toFixed(2);
-      rankList.innerHTML = `<li>${userName} : ${profitRate}%</li>`;
+      const profitRate = ((total - 50000) / 50000) * 100;
+
+      // 예시: 자기 자신만 표시(실제 여러 사용자 시뮬레이터 시 확장 가능)
+      rankList.innerHTML = '';
+      const li = document.createElement('li');
+      li.innerText = `${userName}: 총자산 ${total.toLocaleString()}원, 수익률 ${profitRate.toFixed(2)}%`;
+      rankList.appendChild(li);
     }
 
-    function logTrade(type, price, quantity, profit, rate) {
-      const table = document.getElementById("tradeLog").querySelector("tbody");
-      const row = document.createElement("tr");
+    function logTrade(type, price, quantity, profit, profitRate) {
+      const tbody = document.getElementById('tradeLog').querySelector('tbody');
+      const tr = document.createElement('tr');
       const time = new Date().toLocaleTimeString();
-      const cells = [
-        time, currentStock, type,
-        price.toLocaleString(), quantity,
-        (price * quantity).toLocaleString(),
-        profit === 0 ? '-' : profit.toLocaleString(),
-        rate === "0%" ? '-' : rate
-      ];
-      cells.forEach(text => {
-        const td = document.createElement("td");
-        td.innerText = text;
-        row.appendChild(td);
-      });
-      table.prepend(row);
+      tr.innerHTML = `
+        <td>${time}</td>
+        <td>${currentStock}</td>
+        <td>${type}</td>
+        <td>${price.toLocaleString()}</td>
+        <td>${quantity}</td>
+        <td>${(price * quantity).toLocaleString()}</td>
+        <td style="color:${profit >= 0 ? 'green' : 'red'};">${profit >= 0 ? '+' : ''}${profit.toLocaleString()}</td>
+        <td>${profitRate}</td>
+      `;
+      tbody.prepend(tr);
     }
 
+    // 초기 세팅
     selectStock(currentStock);
   </script>
 </body>
