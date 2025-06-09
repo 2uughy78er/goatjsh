@@ -517,23 +517,7 @@
     }
   
     init();
-    function init() {
-  loadUsersData();
-  initStockData();
-  createStockButtons();
-  initChart();
-  addHoldingsDisplay();
-
-  const savedUser = localStorage.getItem("currentUserName");
-  if (savedUser) initCurrentUser(savedUser);
-
-  selectStock(currentStock);
-
-  setInterval(updateStockPrices, 1000);       // 일반 업데이트
-  setInterval(triggerCrash, 100000);          // ✅ 100초마다 폭락
-  setInterval(triggerBoom, 150000);           // ✅ 150초마다 폭등
-  setInterval(updateHoldingsDisplay, 3000);   // 보유 수량 갱신
-    }
+  
   </script>
 </body>
 </html>
