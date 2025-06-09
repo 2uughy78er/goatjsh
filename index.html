@@ -5,101 +5,55 @@
   <title>📈 모의 주식 시뮬레이터</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    :root {
-      --bg-color: #f7f9fb;
-      --text-color: #000;
-      --panel-color: #fff;
-    }
-
-    body.dark {
-      --bg-color: #1e1e1e;
-      --text-color: #ddd;
-      --panel-color: #2c2c2c;
-    }
-
     body {
       font-family: sans-serif;
       padding: 20px;
-      background: var(--bg-color);
-      color: var(--text-color);
-      transition: all 0.3s;
+      background: #1e1e1e;
+      color: #fff;
     }
-
-    h1 {
-      text-align: center;
-    }
-
+    h1 { text-align: center; }
     .panel {
-      background: var(--panel-color);
+      background: #2c2c2c;
       border-radius: 12px;
       padding: 20px;
       margin-bottom: 20px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
     }
-
-    #stockChart {
-      width: 100%;
-      height: 300px;
+    button {
+      cursor: pointer;
+      margin: 5px;
+      background: #444;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
     }
-
+    select, input {
+      background: #333;
+      color: white;
+      border: 1px solid #666;
+      padding: 6px;
+    }
     textarea {
       width: 100%;
       height: 100px;
-      background: #f0f0f0;
+      background: #111;
+      color: #0f0;
       border: none;
       padding: 10px;
-      border-radius: 8px;
+      resize: none;
     }
-
-    button {
-      cursor: pointer;
-      padding: 8px 12px;
-      margin: 4px 2px;
-      border-radius: 6px;
-      border: none;
-      background-color: #007bff;
-      color: white;
-    }
-
-    button:hover {
-      background-color: #0056b3;
-    }
-
-    select, input {
-      padding: 6px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      margin-right: 8px;
-    }
-
-    .dark select, .dark input, .dark textarea {
-      background: #444;
-      color: #eee;
-      border: 1px solid #666;
-    }
-
-    .top-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .top-bar button {
-      background: #333;
-      color: #fff;
-    }
+    canvas { background: #fff; }
   </style>
 </head>
 <body>
-  <div class="top-bar">
-    <h1>📈 모의 주식 시뮬레이터</h1>
-    <button onclick="toggleDarkMode()">🌙 다크모드</button>
-  </div>
+  <h1>📈 모의 주식 시뮬레이터</h1>
 
   <div class="panel">
     💰 자산: <span id="cash"></span>원 |
     총 평가금액: <span id="totalValue"></span>원 |
-    수익률: <span id="roi"></span>%
+    수익률: <span id="roi"></span>% |
+    <button onclick="toggleTheme()">🌗 다크/라이트 전환</button>
   </div>
 
   <div class="panel">
@@ -108,8 +62,7 @@
     <input type="number" id="amount" value="1" min="1">
     <button onclick="buyStock()">매수</button>
     <button onclick="sellStock()">매도</button>
-    <button onclick="shortSell()">숏 진입</button>
-    <button onclick="shortCover()">숏 매도</button>
+    <button onclick="shortStock()">숏 매도</button>
   </div>
 
   <div class="panel" id="stockInfo"></div>
@@ -124,26 +77,21 @@
   </div>
 
   <div class="panel">
+    <h3>📰 뉴스 속보</h3>
+    <div id="newsArea">최근 뉴스가 여기에 표시됩니다.</div>
+  </div>
+
+  <div class="panel">
     <button onclick="resetAllData()" style="background: red;">🗑️ 초기화</button>
   </div>
 
   <script>
     const initialPrices = {
-      '삼성전자': 70000,
-      '현대차': 180000,
-      'LG에너지솔루션': 400000,
-      '카카오': 60000,
-      '네이버': 200000,
-      'SK하이닉스': 130000,
-      '삼성SDI': 600000,
-      'POSCO': 350000,
-      '한화솔루션': 50000,
-      '셀트리온': 160000,
-      '씨젠': 30000,
-      '두산에너빌리티': 25000,
-      'HMM': 15000,
-      '팬오션': 10000,
-      '한국전력': 1000
+      '삼성전자': 70000, '현대차': 180000, 'LG에너지솔루션': 400000,
+      '카카오': 60000, '네이버': 200000, 'SK하이닉스': 130000,
+      '삼성SDI': 600000, 'POSCO': 350000, '한화솔루션': 50000,
+      '셀트리온': 160000, '씨젠': 30000, '두산에너빌리티': 25000,
+      'HMM': 15000, '팬오션': 10000, '한국전력': 1000
     };
 
     let prices = JSON.parse(localStorage.getItem('stockPrices')) || structuredClone(initialPrices);
@@ -154,6 +102,11 @@
     let currentStock = stocks[0].name;
     let chartsData = {};
     let currentChart = null;
+
+    const newsMessages = {
+      rise: [...Array(50).keys()].map(i => `🔼 외신: ${i+1}번 뉴스 - 투자 심리 회복으로 주가 상승 기대!`),
+      fall: [...Array(50).keys()].map(i => `🔻 속보: ${i+1}번 뉴스 - 악재로 인해 투자자 불안 고조.`)
+    };
 
     function saveAll() {
       localStorage.setItem('portfolio', JSON.stringify(portfolio));
@@ -168,12 +121,16 @@
       document.getElementById('cash').textContent = cash.toLocaleString();
       let total = cash;
       const info = stocks.map(s => {
-        const p = portfolio[s.name] || { quantity: 0, short: 0, shortPrice: 0, logs: [] };
-        const holdingValue = p.quantity * s.price;
-        const shortProfit = p.short > 0 ? (p.shortPrice - s.price) * p.short : 0;
-        total += holdingValue + shortProfit;
-
-        return `<div><b>${s.name}</b> | 현재가: ${s.price.toLocaleString()}원 | 보유: ${p.quantity}주 | 숏: ${p.short}주 @${p.shortPrice || 0} | 숏이익: ${shortProfit.toLocaleString()}원</div>`;
+        const p = portfolio[s.name] || { quantity: 0, short: 0, logs: [] };
+        const holdingValue = (p.quantity - p.short) * s.price;
+        const avg = (p.logs.filter(l => l.action === "buy").slice(-1)[0] || {}).price || 0;
+        const gain = avg ? ((s.price - avg) / avg * 100).toFixed(2) : '0.00';
+        const shortAvg = (p.logs.filter(l => l.action === "short").slice(-1)[0] || {}).price || 0;
+        const shortGain = shortAvg ? ((shortAvg - s.price) / shortAvg * 100).toFixed(2) : '0.00';
+        if (p.quantity > 0 || p.short > 0) {
+          total += (p.quantity - p.short) * s.price;
+        }
+        return `<div><b>${s.name}</b> | 현재가: ${s.price.toLocaleString()}원 | 보유: ${p.quantity}주 | 숏: ${p.short}주 | 수익률: ${gain}% | 숏 수익률: ${shortGain}%</div>`;
       }).join('');
       document.getElementById('stockInfo').innerHTML = info;
       const roi = (((total - 100000) / 100000) * 100).toFixed(2);
@@ -190,13 +147,13 @@
     function buyStock() {
       const stock = stocks.find(s => s.name === currentStock);
       const amount = parseInt(document.getElementById('amount').value);
-      const cost = stock.price * amount;
+      const cost = Math.floor(stock.price * amount * 1.05); // 5% 수수료
       if (cash >= cost) {
         cash -= cost;
-        if (!portfolio[currentStock]) portfolio[currentStock] = { quantity: 0, short: 0, shortPrice: 0, logs: [] };
+        if (!portfolio[currentStock]) portfolio[currentStock] = { quantity: 0, short: 0, logs: [] };
         portfolio[currentStock].quantity += amount;
         portfolio[currentStock].logs.push({ action: "buy", price: stock.price });
-        logAction(`${currentStock} ${amount}주 매수 @${stock.price}`);
+        logAction(`${currentStock} ${amount}주 매수 (수수료 포함 ${cost})`);
         updateUI();
       }
     }
@@ -206,40 +163,25 @@
       const amount = parseInt(document.getElementById('amount').value);
       const p = portfolio[currentStock];
       if (p && p.quantity >= amount) {
-        cash += stock.price * amount;
+        const revenue = Math.floor(stock.price * amount * 0.95); // 5% 수수료
+        cash += revenue;
         p.quantity -= amount;
         p.logs.push({ action: "sell", price: stock.price });
-        logAction(`${currentStock} ${amount}주 매도 @${stock.price}`);
+        logAction(`${currentStock} ${amount}주 매도 (수수료 후 ${revenue})`);
         updateUI();
       }
     }
 
-    function shortSell() {
+    function shortStock() {
       const stock = stocks.find(s => s.name === currentStock);
       const amount = parseInt(document.getElementById('amount').value);
-      const cost = stock.price * amount;
+      const cost = Math.floor(stock.price * amount * 1.05); // 5% 수수료
       if (cash >= cost) {
         cash -= cost;
-        if (!portfolio[currentStock]) portfolio[currentStock] = { quantity: 0, short: 0, shortPrice: 0, logs: [] };
+        if (!portfolio[currentStock]) portfolio[currentStock] = { quantity: 0, short: 0, logs: [] };
         portfolio[currentStock].short += amount;
-        portfolio[currentStock].shortPrice = stock.price;
         portfolio[currentStock].logs.push({ action: "short", price: stock.price });
-        logAction(`${currentStock} ${amount}주 숏 진입 @${stock.price}`);
-        updateUI();
-      }
-    }
-
-    function shortCover() {
-      const stock = stocks.find(s => s.name === currentStock);
-      const amount = parseInt(document.getElementById('amount').value);
-      const p = portfolio[currentStock];
-      if (p && p.short >= amount) {
-        const gain = (p.shortPrice - stock.price) * amount;
-        cash += stock.price * amount + gain;
-        p.short -= amount;
-        if (p.short === 0) p.shortPrice = 0;
-        p.logs.push({ action: "cover", price: stock.price });
-        logAction(`${currentStock} ${amount}주 숏 매도 (청산) @${stock.price} | 이익: ${gain}`);
+        logAction(`${currentStock} ${amount}주 숏 매도 (수수료 포함 ${cost})`);
         updateUI();
       }
     }
@@ -266,6 +208,17 @@
       logAction(`🚀 ${s.name} 폭등 (+${Math.floor(rise * 100)}%)`);
     }
 
+    function applyNewsEvent() {
+      const isRise = Math.random() > 0.5;
+      const s = stocks[Math.floor(Math.random() * stocks.length)];
+      const rate = isRise ? (Math.random() * 0.2 + 1) : (Math.random() * 0.3 + 0.7);
+      s.price = Math.floor(s.price * (isRise ? 1 + rate : 1 - rate));
+      const news = isRise ? newsMessages.rise : newsMessages.fall;
+      const msg = news[Math.floor(Math.random() * news.length)];
+      logAction(`${msg} (${s.name} ${isRise ? '급등' : '급락'})`);
+      document.getElementById('newsArea').textContent = msg;
+    }
+
     function renderChart(name) {
       if (currentChart) currentChart.destroy();
       const ctx = document.getElementById('stockChart').getContext('2d');
@@ -277,7 +230,7 @@
           datasets: [{
             label: name,
             data: data.data,
-            borderColor: 'skyblue',
+            borderColor: 'cyan',
             fill: false
           }]
         },
@@ -302,8 +255,18 @@
       });
     }
 
-    function toggleDarkMode() {
-      document.body.classList.toggle('dark');
+    document.getElementById('stockSelect').addEventListener('change', e => {
+      currentStock = e.target.value;
+      renderChart(currentStock);
+    });
+
+    function toggleTheme() {
+      const dark = document.body.style.background === 'rgb(30, 30, 30)';
+      document.body.style.background = dark ? '#f7f9fb' : '#1e1e1e';
+      document.body.style.color = dark ? '#000' : '#fff';
+      document.querySelectorAll('.panel').forEach(el => {
+        el.style.background = dark ? '#fff' : '#2c2c2c';
+      });
     }
 
     function resetAllData() {
@@ -312,11 +275,6 @@
         location.reload();
       }
     }
-
-    document.getElementById('stockSelect').addEventListener('change', e => {
-      currentStock = e.target.value;
-      renderChart(currentStock);
-    });
 
     function init() {
       const select = document.getElementById('stockSelect');
@@ -339,9 +297,9 @@
       renderChart(currentStock);
       updateUI();
     }, 3000);
-
     setInterval(applyCrash, 100000);
     setInterval(applyBoom, 150000);
+    setInterval(applyNewsEvent, 60000);
 
     init();
   </script>
